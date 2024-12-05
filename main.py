@@ -135,21 +135,26 @@ class SpotifyTrackService:
         try:
             logger.info(f"Searching for {query} with type {search_type}")
             
-            # Extract Spotify ID from URL if a full URL is provided
-            def extract_spotify_id(url: str) -> Optional[str]:
-                match = re.search(r'(album|track|playlist|artist)/([a-zA-Z0-9]+)', url)
+            # Extract Spotify ID and type from URL
+            def extract_spotify_details(url: str) -> Optional[Dict[str, str]]:
+                match = re.search(r'spotify\.com/(track|album|playlist|artist)/([a-zA-Z0-9]+)', url)
                 if match:
-                    nonlocal search_type
-                    search_type = match.group(1)
-                    return match.group(2)
+                    return {
+                        'type': match.group(1),
+                        'id': match.group(2)
+                    }
                 return None
 
-            # Try extracting ID from URL first
-            spotify_id = extract_spotify_id(query) or query
+            # Check if the query is a Spotify URL
+            spotify_details = extract_spotify_details(query)
+            if spotify_details:
+                search_type = spotify_details['type']
+                spotify_id = spotify_details['id']
+            else:
+                spotify_id = query
 
-            # Handling different search scenarios
+            # Direct content retrieval for each type
             if search_type == 'track':
-                # Try searching by ID first
                 try:
                     track = self.sp.track(spotify_id)
                     return [{
@@ -159,7 +164,7 @@ class SpotifyTrackService:
                         'id': track['id']
                     }]
                 except Exception:
-                    # Fall back to normal search
+                    # Fall back to search if direct track fetch fails
                     results = self.sp.search(q=query, type='track', limit=limit)
                     if not results.get('tracks', {}).get('items'):
                         raise ValueError(f"No tracks found for query: {query}")
@@ -175,14 +180,16 @@ class SpotifyTrackService:
                     ]
             
             elif search_type == 'album':
-                # Try searching by album ID
                 try:
+                    # Get all tracks from the album
                     album_tracks = self.sp.album_tracks(spotify_id)
+                    album_info = self.sp.album(spotify_id)
+                    
                     return [
                         {
                             'name': track['name'],
                             'artist': track['artists'][0]['name'],
-                            'album': album_tracks['items'][0]['album']['name'] if album_tracks['items'] else 'Unknown Album',
+                            'album': album_info['name'],
                             'id': track['id']
                         }
                         for track in album_tracks['items']
@@ -209,9 +216,11 @@ class SpotifyTrackService:
                     return album_tracks
             
             elif search_type == 'playlist':
-                # Try searching by playlist ID
                 try:
+                    # Get all tracks from the playlist
                     playlist_tracks = self.sp.playlist_tracks(spotify_id)
+                    playlist_info = self.sp.playlist(spotify_id)
+                    
                     return [
                         {
                             'name': track['track']['name'],
@@ -243,13 +252,15 @@ class SpotifyTrackService:
                     return playlist_tracks
             
             elif search_type == 'artist':
-                # Try searching by artist ID
                 try:
+                    # Get top tracks for the artist
                     top_tracks = self.sp.artist_top_tracks(spotify_id)
+                    artist_info = self.sp.artist(spotify_id)
+                    
                     return [
                         {
                             'name': track['name'],
-                            'artist': track['artists'][0]['name'],
+                            'artist': artist_info['name'],
                             'album': track['album']['name'],
                             'id': track['id']
                         }

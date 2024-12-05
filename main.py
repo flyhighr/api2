@@ -3,16 +3,17 @@ import sys
 import uuid
 import jwt
 import time
-import sqlite3
 import secrets
 import datetime
 from typing import List, Optional, Dict, Any
 
-# Add current directory to path for Vercel
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-import spotipy
-from spotipy.oauth2 import SpotifyClientCredentials
+# Explicitly handle spotipy import
+try:
+    import spotipy
+    from spotipy.oauth2 import SpotifyClientCredentials
+except ImportError as e:
+    print(f"Import Error: {e}")
+    spotipy = None
 
 from fastapi import (
     FastAPI, 
@@ -23,7 +24,16 @@ from fastapi import (
 )
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+# Logging for debugging
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+class SpotifyCredentialsError(Exception):
+    """Custom exception for Spotify credentials issues"""
+    pass
 
 # Simplified Token Management for Serverless
 class InMemoryTokenManager:
@@ -95,17 +105,25 @@ class InMemoryTokenManager:
 # Spotify Track Service
 class SpotifyTrackService:
     def __init__(self):
+        # Explicit error handling for Spotify credentials
         client_id = os.environ.get('SPOTIFY_CLIENT_ID')
         client_secret = os.environ.get('SPOTIFY_CLIENT_SECRET')
 
+        logger.info(f"Initializing Spotify Service with Client ID: {client_id}")
+
         if not client_id or not client_secret:
-            raise ValueError("Spotify credentials not found in environment")
+            logger.error("Spotify credentials not found in environment")
+            raise SpotifyCredentialsError("Spotify credentials not found in environment")
         
-        client_credentials_manager = SpotifyClientCredentials(
-            client_id=client_id, 
-            client_secret=client_secret
-        )
-        self.sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+        try:
+            client_credentials_manager = SpotifyClientCredentials(
+                client_id=client_id, 
+                client_secret=client_secret
+            )
+            self.sp = spotipy.Spotify(client_credentials_manager=client_credentials_manager)
+        except Exception as e:
+            logger.error(f"Failed to initialize Spotify client: {e}")
+            raise
 
     def search_tracks(
         self, 
@@ -114,6 +132,7 @@ class SpotifyTrackService:
         limit: int = 10
     ) -> List[Dict[str, Any]]:
         try:
+            logger.info(f"Searching for {query} with type {search_type}")
             results = self.sp.search(q=query, type=search_type, limit=limit)
             
             if search_type == 'track':
@@ -155,6 +174,7 @@ class SpotifyTrackService:
                     for playlist in results['playlists']['items']
                 ]
         except Exception as e:
+            logger.error(f"Search error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail=f"Search error: {str(e)}"
@@ -166,6 +186,7 @@ class SpotifyTrackService:
         limit: int = 10
     ) -> List[Dict[str, Any]]:
         try:
+            logger.info(f"Getting top tracks for artist: {artist_name}")
             artist_results = self.sp.search(q=artist_name, type='artist', limit=1)
             
             if not artist_results['artists']['items']:
@@ -187,6 +208,7 @@ class SpotifyTrackService:
                 for track in top_tracks['tracks'][:limit]
             ]
         except Exception as e:
+            logger.error(f"Top tracks error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail=f"Top tracks error: {str(e)}"
@@ -194,13 +216,13 @@ class SpotifyTrackService:
 
 # Pydantic Models
 class SearchRequest(BaseModel):
-    query: str
-    search_type: Optional[str] = 'track'
-    limit: Optional[int] = 10
+    query: str = Field(..., min_length=1, max_length=100)
+    search_type: Optional[str] = Field(default='track', regex='^(track|album|artist|playlist)$')
+    limit: Optional[int] = Field(default=10, ge=1, le=50)
 
 class TopTracksRequest(BaseModel):
-    artist_name: str
-    limit: Optional[int] = 10
+    artist_name: str = Field(..., min_length=1, max_length=100)
+    limit: Optional[int] = Field(default=10, ge=1, le=50)
 
 # FastAPI Application
 app = FastAPI(
@@ -219,7 +241,13 @@ app.add_middleware(
 
 # Initialize Managers
 token_manager = InMemoryTokenManager()
-spotify_service = SpotifyTrackService()
+
+# Attempt to initialize Spotify Service with error handling
+try:
+    spotify_service = SpotifyTrackService()
+except SpotifyCredentialsError:
+    logger.error("Failed to initialize Spotify Service")
+    spotify_service = None
 
 # Authorization Dependency
 security = HTTPBearer()
@@ -235,7 +263,10 @@ def validate_request(
 # Routes
 @app.get("/")
 async def root():
-    return {"message": "Spotify Track Retrieval API is running"}
+    return {
+        "message": "Spotify Track Retrieval API is running",
+        "spotify_service_status": "Initialized" if spotify_service else "Not Initialized"
+    }
 
 @app.post("/token")
 async def generate_token(request: Request):
@@ -251,6 +282,12 @@ async def search_tracks(
     token: str = Depends(validate_request),
     request: Request = None
 ):
+    if not spotify_service:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Spotify service not initialized"
+        )
+    
     client_ip = request.client.host
     token_manager.validate_token(token, '/search', client_ip)
     
@@ -266,6 +303,12 @@ async def get_top_tracks(
     token: str = Depends(validate_request),
     request: Request = None
 ):
+    if not spotify_service:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Spotify service not initialized"
+        )
+    
     client_ip = request.client.host
     token_manager.validate_token(token, '/top-tracks', client_ip)
     
@@ -277,12 +320,13 @@ async def get_top_tracks(
 # Global Exception Handler
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.error(f"HTTP Exception: {exc.detail}")
     return {
         "error": True,
         "status_code": exc.status_code,
         "detail": exc.detail
     }
 
-# Vercel Handler
+# Vercel Handler (optional)
 def handler(event, context):
     return app

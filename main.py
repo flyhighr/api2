@@ -282,7 +282,7 @@ class SpotifyTrackService:
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail=f"Search error: {str(e)}"
             )
-            )
+            
 
     def get_artist_top_tracks(
         self, 

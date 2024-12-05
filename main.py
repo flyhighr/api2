@@ -219,8 +219,9 @@ class SpotifyTrackService:
 class SearchRequest(BaseModel):
     query: str = Field(..., min_length=1, max_length=100)
     search_type: Optional[str] = Field(default='track', pattern=r'^(track|album|artist|playlist)$')
+    limit: Optional[int] = Field(default=10, ge=1, le=50)
 
-lass TopTracksRequest(BaseModel):
+class TopTracksRequest(BaseModel):
     artist_name: str = Field(..., min_length=1, max_length=100)
     limit: Optional[int] = Field(default=10, ge=1, le=50)
 

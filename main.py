@@ -441,7 +441,3 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         "status_code": exc.status_code,
         "detail": exc.detail
     }
-
-# Vercel Handler (optional)
-def handler(event, context):
-    return app

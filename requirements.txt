@@ -6,3 +6,4 @@ python-multipart
 sqlalchemy
 requests
 pydantic
+PyJWT==2.8.0

@@ -133,9 +133,27 @@ class SpotifyTrackService:
     ) -> List[Dict[str, Any]]:
         try:
             logger.info(f"Searching for {query} with type {search_type}")
-            results = self.sp.search(q=query, type=search_type, limit=limit)
             
+            # Handling different search scenarios
             if search_type == 'track':
+                # Try searching by ID first if query looks like an ID
+                if len(query) == 22:  # Spotify track IDs are typically 22 chars
+                    try:
+                        track = self.sp.track(query)
+                        return [{
+                            'name': track['name'],
+                            'artist': track['artists'][0]['name'],
+                            'album': track['album']['name'],
+                            'id': track['id']
+                        }]
+                    except Exception:
+                        pass  # Fall back to normal search if ID lookup fails
+                
+                # Normal track search
+                results = self.sp.search(q=query, type='track', limit=limit)
+                if not results.get('tracks', {}).get('items'):
+                    raise ValueError(f"No tracks found for query: {query}")
+                
                 return [
                     {
                         'name': track['name'],
@@ -145,39 +163,125 @@ class SpotifyTrackService:
                     }
                     for track in results['tracks']['items']
                 ]
+            
             elif search_type == 'album':
-                return [
-                    {
-                        'name': album['name'],
-                        'artist': album['artists'][0]['name'],
-                        'id': album['id']
-                    }
-                    for album in results['albums']['items']
-                ]
-            elif search_type == 'artist':
-                return [
-                    {
-                        'name': artist['name'],
-                        'id': artist['id'],
-                        'genres': artist.get('genres', [])
-                    }
-                    for artist in results['artists']['items']
-                ]
+                # Try searching by ID first
+                if len(query) == 22:
+                    try:
+                        album_tracks = self.sp.album_tracks(query)
+                        return [
+                            {
+                                'name': track['name'],
+                                'artist': track['artists'][0]['name'],
+                                'album': album_tracks['items'][0]['album']['name'] if album_tracks['items'] else 'Unknown Album',
+                                'id': track['id']
+                            }
+                            for track in album_tracks['items']
+                        ]
+                    except Exception:
+                        pass
+                
+                # Normal album search
+                results = self.sp.search(q=query, type='album', limit=limit)
+                if not results.get('albums', {}).get('items'):
+                    raise ValueError(f"No albums found for query: {query}")
+                
+                album_tracks = []
+                for album in results['albums']['items']:
+                    album_track_results = self.sp.album_tracks(album['id'])
+                    album_tracks.extend([
+                        {
+                            'name': track['name'],
+                            'artist': track['artists'][0]['name'],
+                            'album': album['name'],
+                            'id': track['id']
+                        }
+                        for track in album_track_results['items']
+                    ])
+                
+                return album_tracks
+            
             elif search_type == 'playlist':
+                # Try searching by ID first
+                if len(query) == 22:
+                    try:
+                        playlist_tracks = self.sp.playlist_tracks(query)
+                        return [
+                            {
+                                'name': track['track']['name'],
+                                'artist': track['track']['artists'][0]['name'],
+                                'album': track['track']['album']['name'],
+                                'id': track['track']['id']
+                            }
+                            for track in playlist_tracks['items'] if track.get('track')
+                        ]
+                    except Exception:
+                        pass
+                
+                # Normal playlist search
+                results = self.sp.search(q=query, type='playlist', limit=limit)
+                if not results.get('playlists', {}).get('items'):
+                    raise ValueError(f"No playlists found for query: {query}")
+                
+                playlist_tracks = []
+                for playlist in results['playlists']['items']:
+                    playlist_track_results = self.sp.playlist_tracks(playlist['id'])
+                    playlist_tracks.extend([
+                        {
+                            'name': track['track']['name'],
+                            'artist': track['track']['artists'][0]['name'],
+                            'album': track['track']['album']['name'],
+                            'id': track['track']['id']
+                        }
+                        for track in playlist_track_results['items'] if track.get('track')
+                    ])
+                
+                return playlist_tracks
+            
+            elif search_type == 'artist':
+                # Try searching by ID first
+                if len(query) == 22:
+                    try:
+                        top_tracks = self.sp.artist_top_tracks(query)
+                        return [
+                            {
+                                'name': track['name'],
+                                'artist': track['artists'][0]['name'],
+                                'album': track['album']['name'],
+                                'id': track['id']
+                            }
+                            for track in top_tracks['tracks']
+                        ]
+                    except Exception:
+                        pass
+                
+                # Normal artist search
+                results = self.sp.search(q=query, type='artist', limit=1)
+                if not results.get('artists', {}).get('items'):
+                    raise ValueError(f"No artists found for query: {query}")
+                
+                artist_id = results['artists']['items'][0]['id']
+                top_tracks = self.sp.artist_top_tracks(artist_id)
+                
                 return [
                     {
-                        'name': playlist['name'],
-                        'id': playlist['id'],
-                        'tracks': playlist['tracks']['total'],
-                        'owner': playlist['owner']['display_name']
+                        'name': track['name'],
+                        'artist': track['artists'][0]['name'],
+                        'album': track['album']['name'],
+                        'id': track['id']
                     }
-                    for playlist in results['playlists']['items']
+                    for track in top_tracks['tracks']
                 ]
+            
+            else:
+                raise ValueError(f"Unsupported search type: {search_type}")
+        
         except Exception as e:
             logger.error(f"Search error: {e}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail=f"Search error: {str(e)}"
+            )
             )
 
     def get_artist_top_tracks(

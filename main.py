@@ -5,6 +5,7 @@ import jwt
 import time
 import secrets
 import datetime
+import re
 from typing import List, Optional, Dict, Any
 
 # Explicitly handle spotipy import
@@ -282,7 +283,6 @@ class SpotifyTrackService:
                 status_code=status.HTTP_400_BAD_REQUEST, 
                 detail=f"Search error: {str(e)}"
             )
-            
 
     def get_artist_top_tracks(
         self, 
@@ -319,9 +319,8 @@ class SpotifyTrackService:
             )
 
 # Pydantic Models
-
 class SearchRequest(BaseModel):
-    query: str = Field(..., min_length=1, max_length=100)
+    query: str = Field(..., min_length=1, max_length=200)  # Increased max length to support URLs
     search_type: Optional[str] = Field(default='track', pattern=r'^(track|album|artist|playlist)$')
     limit: Optional[int] = Field(default=10, ge=1, le=50)
 

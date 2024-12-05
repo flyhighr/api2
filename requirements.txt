@@ -1,7 +1,8 @@
 fastapi
 uvicorn
 spotipy
-PyJWT
-pydantic
+python-jose[cryptography]
 python-multipart
 sqlalchemy
+requests
+pydantic

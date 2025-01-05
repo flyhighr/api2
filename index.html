@@ -1,0 +1,796 @@
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spotify Track API Documentation</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1DB954;
+            --primary-dark: #1aa34a;
+            --primary-light: #1ed760;
+            --secondary: #121212;
+            --text: #FFFFFF;
+            --text-light: #B3B3B3;
+            --background: #181818;
+            --background-alt: #282828;
+            --card-background: #282828;
+            --border: #404040;
+            --radius: 8px;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            --transition: all 0.2s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, system-ui, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--background);
+        }
+
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            background: rgba(18, 18, 18, 0.98);
+            backdrop-filter: blur(10px);
+            z-index: 1000;
+            padding: 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .nav-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 1rem;
+        }
+
+        .nav-brand {
+            color: var(--primary);
+            text-decoration: none;
+            font-size: 1.25rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .hamburger {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.5rem;
+            z-index: 1001;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 1.5rem;
+            align-items: center;
+        }
+
+        .nav-link {
+            color: var(--text);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .nav-link:hover {
+            background: var(--background-alt);
+            color: var(--primary);
+        }
+
+        .sidebar {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: -100%;
+            width: 80%;
+            max-width: 300px;
+            height: 100vh;
+            background: var(--background);
+            padding: 5rem 1rem 1rem;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.2);
+            transition: left 0.3s ease;
+            z-index: 999;
+            border-right: 1px solid var(--border);
+        }
+
+        .sidebar.active {
+            left: 0;
+        }
+
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .overlay.active {
+            opacity: 1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 5rem auto 2rem;
+            padding: 0 1rem;
+        }
+
+        .hero {
+            background: linear-gradient(to bottom, var(--secondary), var(--background));
+            padding: 3rem 2rem;
+            border-radius: var(--radius);
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .hero h1 {
+            color: var(--primary);
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        .hero p {
+            color: var(--text-light);
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: var(--card-background);
+            border-radius: var(--radius);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .card h2 {
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .endpoint-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            background: var(--background);
+            padding: 1rem;
+            border-radius: var(--radius);
+            margin: 1rem 0;
+            border: 1px solid var(--border);
+        }
+
+        .method-badge {
+            background: var(--primary);
+            color: var(--text);
+            padding: 0.5rem 1rem;
+            border-radius: var(--radius);
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .endpoint-url {
+            font-family: 'SF Mono', monospace;
+            background: var(--background);
+            padding: 0.75rem;
+            border-radius: var(--radius);
+            color: var(--text-light);
+            flex-grow: 1;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: var(--transition);
+            word-break: break-all;
+        }
+
+        .endpoint-url:hover {
+            color: var(--primary);
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin: 1rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            color: var(--text-light);
+            cursor: pointer;
+            transition: var(--transition);
+            border-bottom: 2px solid transparent;
+            margin-bottom: -1px;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .tab:hover {
+            color: var(--primary);
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .try-it {
+            background: var(--background);
+            padding: 1.5rem;
+            border-radius: var(--radius);
+            margin-top: 1rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-light);
+        }
+
+        .input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--card-background);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            color: var(--text);
+            font-size: 0.875rem;
+            transition: var(--transition);
+        }
+
+        .input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        select.input {
+            appearance: none;
+            padding-right: 2rem;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23B3B3B3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.75rem center;
+            background-size: 1rem;
+        }
+
+        .button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .button:hover {
+            background: var(--primary-dark);
+        }
+
+        .button:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        pre {
+            background: var(--background);
+            padding: 1rem;
+            border-radius: var(--radius);
+            overflow-x: auto;
+            color: var(--text-light);
+            font-family: 'SF Mono', monospace;
+            font-size: 0.875rem;
+            border: 1px solid var(--border);
+        }
+
+        .result {
+            margin-top: 1rem;
+        }
+
+        @media (max-width: 768px) {
+            .hamburger {
+                display: block;
+            }
+
+            .nav-content {
+                justify-content: space-between;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .sidebar {
+                display: block;
+            }
+
+            .sidebar .nav-links {
+                display: flex;
+                flex-direction: column;
+                gap: 1rem;
+            }
+
+            .overlay {
+                display: block;
+            }
+
+            .nav-link {
+                padding: 1rem;
+                width: 100%;
+                border-radius: var(--radius);
+            }
+
+            .nav-link:hover {
+                background: var(--background-alt);
+            }
+
+            .hero {
+                padding: 2rem 1rem;
+            }
+
+            .hero h1 {
+                font-size: 1.75rem;
+            }
+
+            .endpoint-header {
+                flex-direction: column;
+            }
+
+            .method-badge {
+                align-self: flex-start;
+            }
+
+            .tabs {
+                overflow-x: auto;
+                padding-bottom: 0.5rem;
+            }
+
+            .tab {
+                padding: 0.75rem 1rem;
+                white-space: nowrap;
+            }
+
+            .try-it {
+                padding: 1rem;
+            }
+
+            .button {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin-top: 4rem;
+            }
+
+            .nav-brand {
+                font-size: 1.125rem;
+            }
+
+            .hero h1 {
+                font-size: 1.5rem;
+            }
+
+            .card {
+                padding: 1rem;
+            }
+
+            .endpoint-url {
+                font-size: 0.75rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="nav">
+        <div class="nav-content">
+            <a href="#" class="nav-brand">
+                <i class="fab fa-spotify"></i>
+                Spotify Track API
+            </a>
+            <button class="hamburger" aria-label="Toggle menu">
+                <i class="fas fa-bars"></i>
+            </button>
+            <div class="nav-links">
+                <a href="#authentication" class="nav-link">
+                    <i class="fas fa-key"></i> Authentication
+                </a>
+                <a href="#endpoints" class="nav-link">
+                    <i class="fas fa-code"></i> Endpoints
+                </a>
+                <a href="https://github.com/flyhighr/api2" class="nav-link">
+                    <i class="fab fa-github"></i> GitHub
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="sidebar">
+        <div class="nav-links">
+            <a href="#authentication" class="nav-link">
+                <i class="fas fa-key"></i> Authentication
+            </a>
+            <a href="#endpoints" class="nav-link">
+                <i class="fas fa-code"></i> Endpoints
+            </a>
+            <a href="https://github.com/flyhighr/api2" class="nav-link">
+                <i class="fab fa-github"></i> GitHub
+            </a>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="hero">
+            <h1>
+                <i class="fab fa-spotify"></i>
+                Spotify Track API
+            </h1>
+            <p>A powerful and secure API for retrieving Spotify tracks, albums, playlists, and artist information. Built with modern standards and hosted on Render.</p>
+        </div>
+
+        <div class="card" id="authentication">
+            <h2><i class="fas fa-key"></i> Authentication</h2>
+            <p>All API endpoints require a JWT token for authentication. Generate a token using the endpoint below:</p>
+            
+            <div class="endpoint-header">
+                <span class="method-badge">POST</span>
+                <code class="endpoint-url">https://spotify-track-api.onrender.com/token</code>
+            </div>
+
+            <div class="try-it">
+                <h3>Generate Token</h3>
+                <button class="button" onclick="generateToken()">
+                    <i class="fas fa-sync-alt"></i> Get Token
+                </button>
+                <pre id="tokenResult" class="result">// Token will appear here</pre>
+            </div>
+        </div>
+
+        <div class="card" id="endpoints">
+            <h2><i class="fas fa-search"></i> Search Tracks</h2>
+            
+            <div class="endpoint-header">
+                <span class="method-badge">POST</span>
+                <code class="endpoint-url">https://spotify-track-api.onrender.com/search</code>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab(this, 'search-example')">
+                    <i class="fas fa-code"></i> Example
+                </div>
+                <div class="tab" onclick="switchTab(this, 'search-try')">
+                    <i class="fas fa-play"></i> Try It
+                </div>
+            </div>
+
+            <div id="search-example">
+                <h3>Request Body</h3>
+                <pre>{
+    "query": "Shape of You",
+    "search_type": "track",
+    "limit": 1
+}</pre>
+
+                <h3>Response</h3>
+                <pre>[
+    {
+        "name": "Shape of You",
+        "artist": "Ed Sheeran",
+        "album": "÷ (Divide)",
+        "id": "7qiZfU4dY1lWllzX7mPBI3"
+    }
+]</pre>
+            </div>
+            <div id="search-try" style="display: none;">
+                <div class="try-it">
+                    <div class="input-group">
+                        <label class="input-label">Search Query</label>
+                        <input type="text" id="searchQuery" class="input" placeholder="Enter song, artist, or album name">
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Search Type</label>
+                        <select id="searchType" class="input">
+                            <option value="track">Track</option>
+                            <option value="album">Album</option>
+                            <option value="artist">Artist</option>
+                            <option value="playlist">Playlist</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Limit</label>
+                        <input type="number" id="searchLimit" class="input" value="10" min="1" max="50">
+                    </div>
+
+                    <button class="button" onclick="performSearch()">
+                        <i class="fas fa-search"></i> Search
+                    </button>
+                    <pre id="searchResult" class="result">// Results will appear here</pre>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2><i class="fas fa-chart-line"></i> Top Tracks</h2>
+            
+            <div class="endpoint-header">
+                <span class="method-badge">POST</span>
+                <code class="endpoint-url">https://spotify-track-api.onrender.com/top-tracks</code>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab(this, 'top-tracks-example')">
+                    <i class="fas fa-code"></i> Example
+                </div>
+                <div class="tab" onclick="switchTab(this, 'top-tracks-try')">
+                    <i class="fas fa-play"></i> Try It
+                </div>
+            </div>
+
+            <div id="top-tracks-example">
+                <h3>Request Body</h3>
+                <pre>{
+    "artist_name": "Ed Sheeran",
+    "limit": 3
+}</pre>
+
+                <h3>Response</h3>
+                <pre>[
+    {
+        "name": "Shape of You",
+        "artist": "Ed Sheeran",
+        "album": "÷ (Divide)",
+        "id": "7qiZfU4dY1lWllzX7mPBI3"
+    },
+    {
+        "name": "Perfect",
+        "artist": "Ed Sheeran",
+        "album": "÷ (Divide)",
+        "id": "0tgVpDi06FyKpA1z0VMD4v"
+    }
+]</pre>
+            </div>
+
+            <div id="top-tracks-try" style="display: none;">
+                <div class="try-it">
+                    <div class="input-group">
+                        <label class="input-label">Artist Name</label>
+                        <input type="text" id="artistName" class="input" placeholder="Enter artist name">
+                    </div>
+
+                    <div class="input-group">
+                        <label class="input-label">Limit</label>
+                        <input type="number" id="artistLimit" class="input" value="10" min="1" max="50">
+                    </div>
+
+                    <button class="button" onclick="getTopTracks()">
+                        <i class="fas fa-music"></i> Get Top Tracks
+                    </button>
+                    <pre id="topTracksResult" class="result">// Results will appear here</pre>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+      
+      
+        let currentToken = '';
+        const API_BASE = 'https://spotify-track-api.onrender.com';
+
+        function switchTab(tabElement, contentId) {
+            const tabGroup = tabElement.parentElement;
+            tabGroup.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            tabElement.classList.add('active');
+            
+            const card = tabGroup.parentElement;
+            card.querySelectorAll('[id$="-example"], [id$="-try"]').forEach(content => {
+                content.style.display = 'none';
+            });
+            
+            document.getElementById(contentId).style.display = 'block';
+        }
+
+        async function generateToken() {
+            const button = document.querySelector('#authentication .button');
+            const resultElement = document.getElementById('tokenResult');
+            
+            try {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating...';
+                resultElement.classList.add('loading');
+                
+                const response = await fetch(`${API_BASE}/token`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                currentToken = data.token;
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-sync-alt"></i> Get Token';
+                resultElement.classList.remove('loading');
+            }
+        }
+
+        async function performSearch() {
+            if (!currentToken) {
+                alert('Please generate a token first!');
+                return;
+            }
+
+            const button = document.querySelector('#search-try .button');
+            const resultElement = document.getElementById('searchResult');
+            const query = document.getElementById('searchQuery').value;
+            const searchType = document.getElementById('searchType').value;
+            const limit = document.getElementById('searchLimit').value;
+
+            try {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Searching...';
+                resultElement.classList.add('loading');
+
+                const response = await fetch(`${API_BASE}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query,
+                        search_type: searchType,
+                        limit: parseInt(limit)
+                    })
+                });
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-search"></i> Search';
+                resultElement.classList.remove('loading');
+            }
+        }
+
+        async function getTopTracks() {
+            if (!currentToken) {
+                alert('Please generate a token first!');
+                return;
+            }
+
+            const button = document.querySelector('#top-tracks-try .button');
+            const resultElement = document.getElementById('topTracksResult');
+            const artistName = document.getElementById('artistName').value;
+            const limit = document.getElementById('artistLimit').value;
+
+            try {
+                button.disabled = true;
+                button.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Loading...';
+                resultElement.classList.add('loading');
+
+                const response = await fetch(`${API_BASE}/top-tracks`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        artist_name: artistName,
+                        limit: parseInt(limit)
+                    })
+                });
+                const data = await response.json();
+                resultElement.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                resultElement.textContent = `Error: ${error.message}`;
+            } finally {
+                button.disabled = false;
+                button.innerHTML = '<i class="fas fa-music"></i> Get Top Tracks';
+                resultElement.classList.remove('loading');
+            }
+        }
+
+        // Enhanced copy functionality with tooltip
+        document.querySelectorAll('.endpoint-url').forEach(endpoint => {
+            endpoint.addEventListener('click', async function() {
+                try {
+                    await navigator.clipboard.writeText(this.textContent);
+                    const originalText = this.textContent;
+                    this.textContent = '✓ Copied!';
+                    this.style.color = 'var(--primary)';
+                    setTimeout(() => {
+                        this.textContent = originalText;
+                        this.style.color = '';
+                    }, 1500);
+                } catch (err) {
+                    console.error('Failed to copy:', err);
+                }
+            });
+        });
+
+        // Smooth scrolling with offset for fixed header
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const targetId = this.getAttribute('href');
+                const targetElement = document.querySelector(targetId);
+                if (targetElement) {
+                    const headerOffset = 80;
+                    const elementPosition = targetElement.getBoundingClientRect().top;
+                    const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+
+                    window.scrollTo({
+                        top: offsetPosition,
+                        behavior: 'smooth'
+                    });
+                }
+            });
+        });
+
+      
+        generateToken();
+
+        const hamburger = document.querySelector('.hamburger');
+        const sidebar = document.querySelector('.sidebar');
+        const overlay = document.querySelector('.overlay');
+        const navLinks = document.querySelectorAll('.sidebar .nav-link');
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+            hamburger.querySelector('i').classList.toggle('fa-bars');
+            hamburger.querySelector('i').classList.toggle('fa-times');
+        }
+
+        hamburger.addEventListener('click', toggleSidebar);
+        overlay.addEventListener('click', toggleSidebar);
+        navLinks.forEach(link => {
+            link.addEventListener('click', toggleSidebar);
+        });
+    </script>
+</body>
+</html>
